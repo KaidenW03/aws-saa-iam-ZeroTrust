@@ -1,6 +1,6 @@
-# IAM Zero Trust + Audit Lab
+# IAM Zero Trust + Audit Project
 
-This lab demonstrates how to implement a Zero Trust IAM setup with full audit logging via AWS CloudTrail — all within the Free Tier.
+This project demonstrates how to implement a Zero Trust IAM setup with full audit logging via AWS CloudTrail — all within the Free Tier.
 
 ## Features
 
