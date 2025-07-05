@@ -1,0 +1,27 @@
+Resources:
+  ReadOnlyS3Policy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: ReadOnlyS3Metadata
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:ListAllMyBuckets
+              - s3:ListBucket
+            Resource: "*"
+      Roles:
+        - !Ref ZeroTrustRole
+
+  ZeroTrustRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: ZeroTrustS3Role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: arn:aws:iam::123456789012:user/ZeroTrustUser
+            Action: sts:AssumeRole

@@ -1,0 +1,107 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: IAM Zero Trust + Audit Lab (Free Tier Safe)
+
+Parameters:
+  LogBucketName:
+    Type: String
+    Description: Must be globally unique (e.g., zero-trust-cloudtrail-logs-kaiden)
+  IAMUserName:
+    Type: String
+    Default: ZeroTrustUser
+  RoleName:
+    Type: String
+    Default: ZeroTrustS3Role
+
+Resources:
+  ## 1. S3 Bucket for CloudTrail Logs ##
+  CloudTrailBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref LogBucketName
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+
+  ## 2. CloudTrail Trail ##
+  AuditTrail:
+    Type: AWS::CloudTrail::Trail
+    Properties:
+      TrailName: ZeroTrustAuditTrail
+      S3BucketName: !Ref LogBucketName
+      IsLogging: true
+      IncludeGlobalServiceEvents: true
+      IsMultiRegionTrail: true
+      EnableLogFileValidation: true
+      EventSelectors:
+        - ReadWriteType: All
+          IncludeManagementEvents: true
+          DataResources: []  # No data events = Free Tier safe
+
+  ## 3. IAM Role (Zero Trust) ##
+  ZeroTrustRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Ref RoleName
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub arn:aws:iam::${AWS::AccountId}:user/${IAMUserName}
+            Action: sts:AssumeRole
+      Path: /
+
+  ReadOnlyS3Policy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: ReadOnlyS3Metadata
+      Roles:
+        - !Ref ZeroTrustRole
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: S3ListOnly
+            Effect: Allow
+            Action:
+              - s3:ListAllMyBuckets
+              - s3:ListBucket
+            Resource: "*"
+
+  ## 4. IAM User ##
+  ZeroTrustUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: !Ref IAMUserName
+
+  ## 5. IAM User -> Assume Role Policy ##
+  UserAssumeRolePolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: AssumeZeroTrustRole
+      Users:
+        - !Ref ZeroTrustUser
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action: sts:AssumeRole
+            Resource: !GetAtt ZeroTrustRole.Arn
+
+Outputs:
+  IAMUserName:
+    Value: !Ref ZeroTrustUser
+    Description: The IAM user who can assume the Zero Trust role
+
+  RoleToAssume:
+    Value: !GetAtt ZeroTrustRole.Arn
+    Description: The ARN of the Zero Trust IAM Role
+
+  CloudTrailS3Bucket:
+    Value: !Ref CloudTrailBucket
+    Description: Bucket where CloudTrail logs are stored
